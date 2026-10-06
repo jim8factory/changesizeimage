@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<title>画像アスペクト比＋縮小ツール</title>
+<style>
+  body { font-family: sans-serif; text-align: center; }
+  canvas { border: 1px solid #ccc; margin-top: 10px; max-width: 100%; }
+</style>
+</head>
+<body>
+<h3>画像の縦横比とサイズ縮小</h3>
+<input type="file" id="file" accept="image/*"><br><br>
+
+<label>比率：</label>
+<select id="ratio">
+  <option value="3:2">3 : 2</option>
+  <option value="2:3">2 : 3</option>
+  <option value="1:1">1 : 1</option>
+</select>
+
+<label>縮小率：</label>
+<input type="number" id="scale" value="100" min="10" max="100" step="10"> %
+
+<button id="convert">変換</button><br><br>
+
+<canvas id="canvas"></canvas><br>
+<a id="download" download="converted.png">ダウンロード</a>
+
+<script>
+const fileInput = document.getElementById('file');
+const ratioSelect = document.getElementById('ratio');
+const scaleInput = document.getElementById('scale');
+const convertBtn = document.getElementById('convert');
+const canvas = document.getElementById('canvas');
+const ctx = canvas.getContext('2d');
+const downloadLink = document.getElementById('download');
+
+let img = null;
+
+fileInput.addEventListener('change', e => {
+  const file = e.target.files[0];
+  if (!file) return;
+  const url = URL.createObjectURL(file);
+  img = new Image();
+  img.onload = () => {
+    URL.revokeObjectURL(url);
+    canvas.width = img.width;
+    canvas.height = img.height;
+    ctx.drawImage(img, 0, 0);
+    downloadLink.href = canvas.toDataURL('image/png');
+  };
+  img.src = url;
+});
+
+convertBtn.addEventListener('click', () => {
+  if (!img) return;
+
+  const [rw, rh] = ratioSelect.value.split(':').map(Number);
+  const targetRatio = rw / rh;
+  const srcW = img.width;
+  const srcH = img.height;
+  const srcRatio = srcW / srcH;
+
+  let cropW, cropH, cropX, cropY;
+  if (srcRatio > targetRatio) {
+    cropH = srcH;
+    cropW = Math.round(cropH * targetRatio);
+  } else {
+    cropW = srcW;
+    cropH = Math.round(cropW / targetRatio);
+  }
+  cropX = Math.round((srcW - cropW) / 2);
+  cropY = Math.round((srcH - cropH) / 2);
+
+  // 縮小率適用
+  const scale = Number(scaleInput.value) / 100;
+  const outW = Math.round(cropW * scale);
+  const outH = Math.round(cropH * scale);
+
+  canvas.width = outW;
+  canvas.height = outH;
+
+  ctx.imageSmoothingEnabled = true;
+  ctx.imageSmoothingQuality = 'high';
+  ctx.drawImage(img, cropX, cropY, cropW, cropH, 0, 0, outW, outH);
+
+  downloadLink.href = canvas.toDataURL('image/png');
+  downloadLink.textContent = `ダウンロード（${outW}×${outH} / ${ratioSelect.value} / ${scaleInput.value}%）`;
+});
+</script>
+</body>
+</html>
